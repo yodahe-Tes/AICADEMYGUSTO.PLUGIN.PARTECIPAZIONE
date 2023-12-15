@@ -24,29 +24,30 @@ namespace PLUGIN.PARTECIPAZIONE
             if (context.InputParameters.Contains("Target") && context.InputParameters["Target"] is Entity)
             {
                 Entity target = (Entity)context.InputParameters["Target"];
+                EntityReference eventoRef = target.GetAttributeValue<EntityReference>("aicgusto_evento");
+
+                // Retrieve del "data" attribute dall entita "evento" 
+                Entity eventoPartecip = service.Retrieve("aicgusto_evento", eventoRef.Id, new ColumnSet("aicgusto_data"));
+                int meseEvento = eventoPartecip.GetAttributeValue<DateTime>("aicgusto_data").Month;
+                int questoMese = DateTime.Now.Month;
 
                 // Verifica se il record è di tipo Partecipazione 
                 if (target.LogicalName == "aicgusto_partecipazione")
                 {
-                    // Verifica se il cliente ha già una partecipazione nel mese corrente
-                    if (VerificaPartecipazione(service, target))
+                    if(meseEvento == questoMese)
                     {
-                        //se return vero( quindi "controllo>0"), impedisci di salvare e spara messaggio
-                        throw new InvalidPluginExecutionException("Il cliente ha già una partecipazione nel mese corrente. La creazione della partecipazione è negata.");
+                        // Verifica se il cliente ha già una partecipazione nel mese corrente
+                        if (VerificaPartecipazione(service, target))
+                        {
+                            //se return vero( quindi "controllo>0"), impedisci di salvare e spara messaggio
+                            throw new InvalidPluginExecutionException("Il cliente ha già una partecipazione nel mese corrente. La creazione della partecipazione è negata.");
+                        }
                     }
+                    
                 }
             }
 
-
-
-
-            bool VerificaPartecipazione(IOrganizationService service1, Entity target)
-            {
-                // Ottenere l'ID del cliente dalla partecipazione
-                //Guid clienteId = target.GetAttributeValue<E>;
-
-                // Ottenere la data corrente
-
+            bool VerificaPartecipazione(IOrganizationService service1, Entity target){
                 // Costruire una query FetchXML per verificare se il cliente ha già una partecipazione nel mese corrente
                 string fetchXml = "<fetch version='1.0' output-format='xml-platform' mapping='logical' distinct='false'>" +
                                         "  <entity name='aicgusto_partecipazione'>" +
@@ -64,20 +65,16 @@ namespace PLUGIN.PARTECIPAZIONE
                                         "    </link-entity>" +
                                         "  </entity>" +
                                         "</fetch>";
-                tracingService.Trace($"dopo  fetch {fetchXml} \n   ");
 
                 // Faccio la retrive di ciò che ho impostato qui sopra(cliente ha N partecipazioni)
-                // Nella collection controllo
                 EntityCollection controllo = service.RetrieveMultiple(new FetchExpression(fetchXml));
+                // Nella collection controllo
 
                 if (controllo != null && controllo.Entities.Count > 0)
                 {
                     return true;
-
                 }
-
                 //se avrà "catturato", return true, se è 0, return false
-
                 return false;
             }
         }
